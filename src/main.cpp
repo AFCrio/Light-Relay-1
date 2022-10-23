@@ -292,10 +292,15 @@ wifiMulti.run();
 	  timeClient.update();
 	  //Serial.println(timeClient.getFormattedTime());
 	  if (timer_mode){
-		   if (timeClient.getHours()>7 and timeClient.getHours()<21)
-			  relay(true);
-		   else 
+      if (timeClient.getMinutes()==0){
 			  relay(false);
+      }
+
+      // 		   if (timeClient.getHours()>7 and timeClient.getHours()<21)
+			//   relay(true);
+		  //  else 
+      // 			  relay(false);
+
 	  }
   }
 }
