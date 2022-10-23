@@ -38,14 +38,67 @@ String webPage_current="";
 String webPageHead =R"V( 
   <html><head>
   <link rel="stylesheet" href="picnic.min.css">
-  <script src="axios.min.js"></script>
+  <script src="/axios.min.js" defer></script>
+  <script>
+    function power(arg){
+      if (arg)
+        axios.get("/onBtn");
+      else  
+        axios.get("/offBtn");
+
+      updatehtml()        
+    };
+
+    function settimer(arg){
+      if (arg)
+        axios.get("/timerOn");
+      else  
+        axios.get("/timerOff");
+
+      updatehtml()        
+    };
+
+    setInterval(() => {
+        updatehtml();
+    }, "10000");
+
+    function updatehtml(){
+
+      axios.get("/status")  
+      .then(function (response) {
+        document.getElementById('footer').innerHTML =response.data;
+      })
+      .catch(function (error) {
+        if (error.response) {
+           document.getElementById('footer').innerHTML =error.response.data
+          console.log(error.response.data);
+          console.log(error.response.status);
+          console.log(error.response.headers);
+        } else if (error.request) {
+          console.log(error.request);
+        } else {
+          document.getElementById('footer').innerHTML ='Error !';
+          console.log('Error', error.message);
+        }
+          console.log(error.config);
+        });
+      }
+  </script>
   </head>
-  <body style="margin: 1em;"> <h3>Sonoff relay with timer 02.10.2022</h3>
+  <body style="margin: 1em;">
+  <a href="#" onclick="power(true);">
+  <button style="width:100%;background-color: green;height: 10vh;font-size:5vh">ON</button>
+  </a>&nbsp;
+  <a href="#" onclick="power(false);">
+  <button style="width:100%;background-color: red;height: 10vh;font-size:5vh">OFF</button>
+  </a>&nbsp;
+   <h3>Sonoff relay with timer 02.10.2022</h3>
 )V";
 
 String webPage =webPageHead+R"V( 
-<p> <a href="timerOn"><button>Timer ON</button></a>&nbsp;<a href="timerOff"><button>Timer OFF</button></a> <BR>
-<p> <a href="onBtn"><button>ON</button></a>&nbsp;<a href="offBtn"><button>OFF</button></a>&nbsp;<a href="swBtn"><button>Switch</button></a></p>
+<p> <a href="#" onclick="settimer(true);"><button>Timer ON</button></a>&nbsp;<a href="#"  onclick="settimer(false);"><button>Timer OFF</button></a> <BR>
+<!-- <p> <a href="#" onclick="power(true);"><button>ON</button></a>&nbsp;<a href="#" onclick="power(false);"><button>OFF</button></a></p> -->
+<div id='footer'>
 )V";
 
 void notFound(AsyncWebServerRequest *request) {
@@ -56,6 +109,9 @@ void notFound(AsyncWebServerRequest *request) {
 // 	if (timer_mode) return "Enabled";
 // 	else return "Disabled";
 // };
+String pageFooter(){
+  return "<div id='mode'>"+power_mode_str+"<br>"+timer_mode_str+"</div><div id='curr_time'>"+timeClient.getFormattedTime()+"</div></div>";
+}
 
 void update_str()
 {
@@ -70,8 +126,9 @@ void update_str()
   {
       timer_mode_str="Timer mode off";
   }
-    webPage_current=webPage+power_mode_str+"<br>"+timer_mode_str;
+    webPage_current=webPage+pageFooter();
 }
+
 
 void relay(bool state){
 	if (state){
@@ -83,7 +140,7 @@ void relay(bool state){
 	else{
       digitalWrite(Ledpin, HIGH);
       digitalWrite(Powerpin, LOW);
-      Serial.println("Relay off");
+      //Serial.println("Relay off");
       power_mode=false;
 	}
   update_str();
@@ -161,25 +218,25 @@ void setup() {
   server.on("/timerOn", [](AsyncWebServerRequest *request){
     Serial.println("Timer ON command "+millis());   
     timer_mode_change(true);
-    request->send(200, "text/html",webPage_current+"<br>Last command: Timer ON");
+    request->send(200, "text/html","Last command: Timer ON");
   });
     
   server.on("/timerOff", [](AsyncWebServerRequest *request){
     Serial.println("Timer OFF command "+millis());   
     timer_mode_change(false);
-    request->send(200, "text/html",webPage_current+"<br>Last command: Timer OFF");
+    request->send(200, "text/html","Last command: Timer OFF");
   });
     
   server.on("/onBtn", [](AsyncWebServerRequest *request){
 	  relay(true);
     Serial.println("Timer ON command "+millis());   
-    request->send(200, "text/html",webPage_current+"<br>Last command: Button ON");
+    request->send(200, "text/html","Last command: Button ON");
   });
     
   server.on("/offBtn", [](AsyncWebServerRequest *request){
 	  relay(false);
     Serial.println("Timer OFF command "+millis());   
-    request->send(200, "text/html",webPage_current+"<br>Last command: Button OFF");
+    request->send(200, "text/html","Last command: Button OFF");
   });
 
   server.on("/rssi", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -195,6 +252,11 @@ void setup() {
         request->send(200, "text/html", WiFi.macAddress());
     });  
 	
+  server.on("/axios.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/axios.min.js", "text/css");
+    response->addHeader("Cache-Control","immutable");
+    request->send(response);
+  });		
   server.on("/picnic.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
     AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/picnic.min.css", "text/css");
     response->addHeader("Cache-Control","immutable");
@@ -203,53 +265,19 @@ void setup() {
  server.on("/free", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(200, "text/html", String(ESP.getFreeSketchSpace()));
     });  
+
+     server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(200, "text/html", pageFooter());
+    });  
   server.onNotFound(notFound);
   server.begin();
   Serial.println("HTTP server started");   
   timeClient.begin();
-
-  /* ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else {  // U_FS
-      type = "filesystem";
-    }
-
-    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-    Serial.println("Start updating " + type);
-  });
-
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-  });
-
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) {
-      Serial.println("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {
-      Serial.println("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {
-      Serial.println("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {
-      Serial.println("Receive Failed");
-    } else if (error == OTA_END_ERROR) {
-      Serial.println("End Failed");
-    }
-  });
-
-  ArduinoOTA.begin();
-    Serial.println("OTA server started");    */
+  
 }
 
 void loop() {
-// ArduinoOTA.handle();
-
+  update_str();
 wifiMulti.run();
   now=millis();
   if (digitalRead(Buttonpin)==0){
@@ -262,12 +290,12 @@ wifiMulti.run();
   if ((now-last)>10000){
 	  last=millis();
 	  timeClient.update();
-	  Serial.println(timeClient.getFormattedTime());
+	  //Serial.println(timeClient.getFormattedTime());
 	  if (timer_mode){
-		  if (timeClient.getHours()>7 and timeClient.getHours()<21)
-			relay(true);
-		  else 
-			relay(false);
+		   if (timeClient.getHours()>7 and timeClient.getHours()<21)
+			  relay(true);
+		   else 
+			  relay(false);
 	  }
   }
 }
