@@ -17,8 +17,6 @@ NTPClient timeClient(ntpUDP,"ua.pool.ntp.org",7200);
 
 ESP8266WiFiMulti wifiMulti;
 
-String Router_SSID= "Crio";
-String Router_Pass= "Crio6678Crio";
 DNSServer dns;
 AsyncWebServer server(80);
 
@@ -177,7 +175,9 @@ void setup() {
      Serial.println("ERROR!!! Filesystem not mounted...");
    }
 
-  wifiMulti.addAP(Router_SSID.c_str(), Router_Pass.c_str());
+  wifiMulti.addAP("ITKAFE", "42itkafe42");
+  wifiMulti.addAP("ItkafeOpen", "88888888");
+  wifiMulti.addAP("Crio", "Crio6678Crio");
 
 
   uint8_t status;
@@ -277,12 +277,12 @@ void setup() {
 }
 
 void loop() {
+  wifiMulti.run();
   update_str();
-wifiMulti.run();
   now=millis();
   if (digitalRead(Buttonpin)==0){
     Serial.println("Manual");
-    timer_mode_change(false);
+    //timer_mode_change(false);
     relay(!power_mode);
     delay(1000);
   }
