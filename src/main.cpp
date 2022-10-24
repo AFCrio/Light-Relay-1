@@ -18,6 +18,7 @@ NTPClient timeClient(ntpUDP,"ua.pool.ntp.org",7200);
 ESP8266WiFiMulti wifiMulti;
 
 DNSServer dns;
+
 AsyncWebServer server(80);
 
 uint8_t Powerpin = 12;
@@ -83,14 +84,15 @@ String webPageHead =R"V(
       }
   </script>
   </head>
-  <body style="margin: 1em;">
+  <body style="margin: 0.5em;">
+  <h3>Itkafe relay with timer 24.10.2022</h3>
   <a href="#" onclick="power(true);">
-  <button style="width:100%;background-color: green;height: 10vh;font-size:5vh">ON</button>
-  </a>&nbsp;
+  <button style="margin:0.1em;width:100%;background-color: green;height: 10vh;font-size:5vh">ON</button>
+  </a>
   <a href="#" onclick="power(false);">
-  <button style="width:100%;background-color: red;height: 10vh;font-size:5vh">OFF</button>
-  </a>&nbsp;
-   <h3>Sonoff relay with timer 02.10.2022</h3>
+  <button style="margin:0.1em;width:100%;background-color: red;height: 10vh;font-size:5vh">OFF</button>
+  </a>
+   
 )V";
 
 String webPage =webPageHead+R"V( 
@@ -127,18 +129,15 @@ void update_str()
     webPage_current=webPage+pageFooter();
 }
 
-
 void relay(bool state){
 	if (state){
 	    digitalWrite(Powerpin, HIGH);
       digitalWrite(Ledpin, LOW);
-      Serial.println("Relay on");
       power_mode=true;
 	}
 	else{
       digitalWrite(Ledpin, HIGH);
       digitalWrite(Powerpin, LOW);
-      //Serial.println("Relay off");
       power_mode=false;
 	}
   update_str();
@@ -178,7 +177,6 @@ void setup() {
   wifiMulti.addAP("ITKAFE", "42itkafe42");
   wifiMulti.addAP("ItkafeOpen", "88888888");
   wifiMulti.addAP("Crio", "Crio6678Crio");
-
 
   uint8_t status;
   int i = 0;
@@ -273,7 +271,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");   
   timeClient.begin();
-  
+  relay(false);
 }
 
 void loop() {
